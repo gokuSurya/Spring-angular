@@ -7,5 +7,5 @@ import { Component } from '@angular/core';
 })
 export class AppComponent {
   title = 'Spring + Angular';
-  description = 'This Angular app is built into Spring Boot static resources.';
+  description = 'Angular reads nonce from meta tag and sends it in X-CSP-Nonce header for API calls.';
 }

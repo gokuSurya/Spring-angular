@@ -20,20 +20,20 @@ public class WebController {
         String nonce = String.valueOf(request.getAttribute(CspNonceFilter.NONCE_ATTR));
         String html = loadIndexHtml();
 
-        String withMeta = html.replace("</head>",
-                "  <meta name=\"csp-nonce\" content=\"" + nonce + "\">\n" +
-                        "  <script nonce=\"" + nonce + "\">\n" +
-                        "    window.__CSP_NONCE__ = '" + nonce + "';\n" +
-                        "    const originalFetch = window.fetch;\n" +
-                        "    window.fetch = (input, init = {}) => {\n" +
-                        "      const headers = new Headers(init.headers || {});\n" +
-                        "      headers.set('X-CSP-Nonce', window.__CSP_NONCE__);\n" +
-                        "      return originalFetch(input, { ...init, headers });\n" +
-                        "    };\n" +
-                        "  </script>\n</head>");
+        String withNonceMeta = upsertNonceMeta(html, nonce);
+        String withScriptNonces = withNonceMeta.replaceAll("<script(?![^>]*\\bnonce=)", "<script nonce=\"" + nonce + "\"");
 
-        String withScriptNonces = withMeta.replaceAll("<script(?![^>]*\\bnonce=)", "<script nonce=\"" + nonce + "\"");
         return ResponseEntity.ok(withScriptNonces);
+    }
+
+    private String upsertNonceMeta(String html, String nonce) {
+        String metaTag = "<meta name=\"csp-nonce\" content=\"" + nonce + "\">";
+
+        if (html.contains("name=\"csp-nonce\"")) {
+            return html.replaceAll("<meta\\s+name=\"csp-nonce\"\\s+content=\"[^\"]*\"\\s*/?>", metaTag);
+        }
+
+        return html.replace("</head>", "  " + metaTag + "\n</head>");
     }
 
     private String loadIndexHtml() throws IOException {
@@ -41,10 +41,12 @@ public class WebController {
         if (staticIndex.exists()) {
             return StreamUtils.copyToString(staticIndex.getInputStream(), StandardCharsets.UTF_8);
         }
+
         ClassPathResource fallbackIndex = new ClassPathResource("public/index.html");
         if (fallbackIndex.exists()) {
             return StreamUtils.copyToString(fallbackIndex.getInputStream(), StandardCharsets.UTF_8);
         }
+
         return "<html><body><h1>Angular build not found</h1><p>Run frontend build first.</p></body></html>";
     }
 }
